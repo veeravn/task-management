@@ -1,60 +1,25 @@
 package models
 
-import (
-	"strings"
-	"task-management/dao"
-	u "task-management/utils"
-	"time"
-
-	"github.com/dgrijalva/jwt-go"
-	"github.com/jinzhu/gorm"
-)
-
-/*
-JWT claims struct
-*/
-type Token struct {
-	UserId uint
-	jwt.StandardClaims
-}
+import "github.com/go-playground/validator/v10"
 
 // a struct to rep task
 type Task struct {
-	gorm.Model
-	Id          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Status      Status    `json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID          uint   `json:"id" gorm:"primaryKey"`
+	Title       string `json:"title" binding:"required,min=3,max=255"`                        // Title should be between 3 and 255 characters
+	Description string `json:"description" binding:"required,min=5,max=500"`                  // Description should be between 5 and 500 characters
+	Status      string `json:"status" binding:"required,oneof=pending in-progress completed"` // Status must be one of these values
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
-func init() {
-	dao.GetDB().Debug().AutoMigrate(&Task{})
-}
+// This method can be used to perform custom validations on the task model before saving it to the database.
+func (task *Task) Validate() error {
+	validate := validator.New()
 
-// Validate incoming user details...
-func (task *Task) Validate() (map[string]interface{}, bool) {
-
-	if !strings.Contains(task.Title, "@") {
-		return u.Message(false, "Email address is required"), false
+	// Example: You could validate fields like the status here, or even other custom business logic
+	if err := validate.Struct(task); err != nil {
+		return err
 	}
 
-	if !strings.Contains(task.Description, "@") {
-		return u.Message(false, "Description is required"), false
-	}
-
-	//Email must be unique
-	temp := &Task{}
-
-	//check for errors and duplicate tasks
-	err := dao.GetDB().Table("tasks").Where("id = ?", task.Id).First(temp).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return u.Message(false, "Connection error. Please retry"), false
-	}
-	if temp.Id != "" {
-		return u.Message(false, "Id already in use by another user."), false
-	}
-
-	return u.Message(false, "Requirement passed"), true
+	return nil
 }
