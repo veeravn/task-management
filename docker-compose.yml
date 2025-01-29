@@ -1,0 +1,49 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - postgres-network
+  postgres:
+    image: 'postgres:latest'
+    ports:
+      - 5432:5432
+    env_file:
+      - .env
+    networks:
+      - postgres-network
+    volumes:
+      - ${PWD}/db-data/:/var/lib/postgresql/data/
+      - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U postgres -d postgres -c 'SELECT 1' || exit 1"]
+      interval: 20s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - 15433:80
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    networks:
+      - postgres-network
+    volumes:
+      - ${PWD}/scripts/:/var/lib/pgadmin/
+
+networks: 
+  postgres-network:
+    driver: bridge
+
+volumes:
+  db_data:
