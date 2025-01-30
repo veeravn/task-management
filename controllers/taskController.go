@@ -45,7 +45,7 @@ func CreateTask(c *gin.Context) {
 	}
 
 	// Return the created task
-	c.JSON(http.StatusOK, task)
+	c.JSON(http.StatusCreated, task)
 }
 
 func UpdateTask(c *gin.Context) {

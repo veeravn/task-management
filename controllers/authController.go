@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"os"
+	"strings"
 	"task-management/dao"
 	"task-management/models"
 	u "task-management/utils"
@@ -30,12 +31,42 @@ var jwtSecret = []byte("your-secret-key")
 
 func Authenticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token := c.GetHeader("Authorization")
-		if token != "Bearer your-token" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		// Get Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
 			c.Abort()
 			return
 		}
+
+		// Ensure it follows "Bearer <token>" format
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization format"})
+			c.Abort()
+			return
+		}
+
+		tokenString := parts[1]
+
+		// Parse and validate token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				// error := gin.Error{Err: bcrypt.ErrMismatchedHashAndPassword, Type: gin.ErrorTypePublic, Meta: "Invalid signing method"}
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signing method"})
+				c.Abort()
+			}
+			return jwtSecret, nil
+		})
+
+		// If token is invalid
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// Token is valid, continue request
 		c.Next()
 	}
 }
@@ -62,7 +93,7 @@ func Login(c *gin.Context) {
 		} else {
 			msg = u.Message(false, "Connection error. Please retry")
 		}
-		c.JSON(http.StatusForbidden, msg)
+		c.JSON(http.StatusUnauthorized, msg)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(account.Password), []byte(loginRequest.Password))
@@ -79,6 +110,6 @@ func Login(c *gin.Context) {
 	account.Token = tokenString //Store the token in the response
 
 	resp := u.Message(true, "Logged In")
-	resp["account"] = account
+	resp["token"] = account.Token
 	c.JSON(http.StatusOK, resp)
 }

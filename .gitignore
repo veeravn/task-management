@@ -3,3 +3,4 @@ scripts/*.db
 db-data
 task-management
 main
+.vscode/

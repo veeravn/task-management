@@ -10,7 +10,7 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/login", controllers.Login)
 	router.POST("/account", controllers.CreateAccount)
 	// Public routes (no authentication required)
-	public := router.Group("/")
+	public := router.Group("/public")
 	{
 		public.GET("/tasks", controllers.GetAllTasks) // List all tasks
 	}
