@@ -30,7 +30,7 @@ func TestLoginSuccess(t *testing.T) {
 	router := setupAuthRouter()
 
 	// Create an account
-	acct := models.Account{Email: "admin@taskmgmt.com", Password: "login test", Token: ""}
+	acct := models.Account{Email: "admin@taskmgmt.com", Password: "login test"}
 	dao.GetDB().Create(&acct)
 
 	loginData := controllers.LoginRequest{

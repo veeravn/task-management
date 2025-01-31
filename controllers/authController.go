@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -62,8 +63,6 @@ func Authenticate() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		println("\nToken String: " + tokenString)
-
 		// Parse and validate token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// Inside the callback function checks if the token uses HMAC signing.
@@ -71,6 +70,13 @@ func Authenticate() gin.HandlerFunc {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signing method"})
 				c.Abort()
 			}
+			// This is mainly for if statements.  When the app is running, this should already be initialized.
+			if jwtSecret == nil {
+				jwtSecret = []byte(os.Getenv("token_password"))
+			} else if len(jwtSecret) == 0 {
+				jwtSecret = []byte(os.Getenv("token_password"))
+			}
+			fmt.Println(jwtSecret)
 			return jwtSecret, nil
 		})
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"task-management/controllers"
 	"task-management/dao"
@@ -22,6 +23,9 @@ import (
 
 var testToken = generateTestToken()
 var testRouter *gin.Engine
+
+const tokenKey = "token_password"
+const tokenVal = "thisIsTheJwtPassword"
 
 // Setup the test database and router
 func TestMain(m *testing.M) {
@@ -66,6 +70,7 @@ func TestGetPublicTasks(t *testing.T) {
 
 // Test creating a task (Protected Route)
 func TestCreateTask(t *testing.T) {
+	os.Setenv(tokenKey, tokenVal)
 	task := models.Task{
 		Title:       "Test Task",
 		Description: "This is a test task",
@@ -147,7 +152,6 @@ func TestAuthMiddleware(t *testing.T) {
 
 // ❌ **Test: Create Task with Missing Fields**
 func TestCreateTask_MissingFields(t *testing.T) {
-
 	task := models.Task{
 		Title: "", // Title is required
 	}
@@ -187,7 +191,6 @@ func TestCreateTask_Duplicate(t *testing.T) {
 
 // ❌ **Test: Create Task Without Authorization**
 func TestCreateTask_Unauthorized(t *testing.T) {
-
 	task := models.Task{
 		Title:       "Unauthorized Task",
 		Description: "Testing unauthorized access",
@@ -266,7 +269,6 @@ func TestUpdateTask_Unauthorized(t *testing.T) {
 
 // ❌ **Test: Delete Non-Existent Task**
 func TestDeleteTask_NotFound(t *testing.T) {
-
 	req, _ := http.NewRequest("DELETE", "/tasks/99999", nil) // Non-existent ID
 	req.Header.Set("Authorization", "Bearer "+testToken)
 
@@ -289,11 +291,12 @@ func TestDeleteTask_Unauthorized(t *testing.T) {
 }
 
 func generateTestToken() string {
+	os.Setenv(tokenKey, tokenVal)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": "testuser",
 		"exp":      time.Now().Add(24 * time.Hour).Unix(), // Expire in 24 hours
 	})
 
-	signedToken, _ := token.SignedString([]byte("your-secret-key")) // Use same key as middleware
+	signedToken, _ := token.SignedString([]byte("thisIsTheJwtPassword")) // Use same key as middleware
 	return signedToken
 }
