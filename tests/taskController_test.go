@@ -228,7 +228,6 @@ func TestUpdateTask_NotFound(t *testing.T) {
 
 // ❌ **Test: Update Task with Invalid Data**
 func TestUpdateTask_InvalidData(t *testing.T) {
-	task := createTestTask() // Insert a test task
 
 	taskUpdate := models.Task{
 		Title:       "", // Empty title (invalid)
@@ -237,7 +236,7 @@ func TestUpdateTask_InvalidData(t *testing.T) {
 	}
 	taskJSON, _ := json.Marshal(taskUpdate)
 
-	req, _ := http.NewRequest("PUT", "/tasks/"+strconv.Itoa(int(task.ID)), bytes.NewBuffer(taskJSON))
+	req, _ := http.NewRequest("PUT", "/tasks/"+strconv.Itoa(1), bytes.NewBuffer(taskJSON))
 	req.Header.Set("Authorization", "Bearer "+testToken)
 	req.Header.Set("Content-Type", "application/json")
 
