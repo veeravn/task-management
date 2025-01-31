@@ -1,18 +1,34 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"strings"
 	"task-management/dao"
 	"task-management/models"
 	u "task-management/utils"
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+// Secret key for signing the JWT token (should be stored securely in an environment variable)
+var jwtSecret []byte
+
+func init() {
+	if os.Getenv("token_password") == "" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Println("Warning: Could not load .env file")
+		}
+	}
+	jwtSecret = []byte(os.Getenv("token_password"))
+}
 
 func CreateAccount(c *gin.Context) {
 
@@ -25,9 +41,6 @@ func CreateAccount(c *gin.Context) {
 	resp := account.Create() //Create account
 	c.JSON(http.StatusCreated, resp)
 }
-
-// Secret key for signing the JWT token (should be stored securely in an environment variable)
-var jwtSecret = []byte("your-secret-key")
 
 func Authenticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -49,16 +62,20 @@ func Authenticate() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
+		println("\nToken String: " + tokenString)
+
 		// Parse and validate token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Inside the callback function checks if the token uses HMAC signing.
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				// error := gin.Error{Err: bcrypt.ErrMismatchedHashAndPassword, Type: gin.ErrorTypePublic, Meta: "Invalid signing method"}
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signing method"})
 				c.Abort()
 			}
 			return jwtSecret, nil
 		})
-
+		if err != nil {
+			println("Error: " + err.Error())
+		}
 		// If token is invalid
 		if err != nil || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
@@ -99,17 +116,25 @@ func Login(c *gin.Context) {
 	err = bcrypt.CompareHashAndPassword([]byte(account.Password), []byte(loginRequest.Password))
 	if err != nil && err == bcrypt.ErrMismatchedHashAndPassword { //Password does not match!
 		msg = u.Message(false, "Invalid login credentials. Please try again")
+		c.JSON(http.StatusUnauthorized, msg)
 	}
 	//Worked! Logged In
 	account.Password = ""
 
 	//Create JWT token
-	tk := &models.Token{UserId: account.ID}
-	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
-	tokenString, _ := token.SignedString([]byte(os.Getenv("token_password")))
-	account.Token = tokenString //Store the token in the response
+	claims := jwt.MapClaims{
+		"username": account.Email,
+		"exp":      time.Now().Add(24 * time.Hour).Unix(), // Token expires in 24 hours
+	}
+	// Create a JWT token with an expiration time
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		println("Token signing error: " + err.Error())
+		c.Abort()
+	}
 
 	resp := u.Message(true, "Logged In")
-	resp["token"] = account.Token
+	resp["token"] = tokenString
 	c.JSON(http.StatusOK, resp)
 }

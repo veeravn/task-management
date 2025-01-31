@@ -1,15 +1,37 @@
 package models
 
-import "github.com/go-playground/validator/v10"
+import (
+	"errors"
+	"time"
 
-// a struct to rep task
+	"github.com/go-playground/validator/v10"
+)
+
+// Define Golang ENUM for Task Status
+type TaskStatus string
+
+const (
+	StatusPending    TaskStatus = "pending"
+	StatusInProgress TaskStatus = "in-progress"
+	StatusCompleted  TaskStatus = "completed"
+)
+
+// Validate if TaskStatus is valid
+func (s TaskStatus) IsValid() error {
+	switch s {
+	case StatusPending, StatusInProgress, StatusCompleted:
+		return nil
+	}
+	return errors.New("invalid status")
+}
+
 type Task struct {
-	ID          uint   `json:"id" gorm:"primaryKey"`
-	Title       string `json:"title" binding:"required,min=3,max=255"`                        // Title should be between 3 and 255 characters
-	Description string `json:"description" binding:"required,min=5,max=500"`                  // Description should be between 5 and 500 characters
-	Status      string `json:"status" binding:"required,oneof=pending in-progress completed"` // Status must be one of these values
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	Title       string     `gorm:"unique;not null" json:"title" binding:"required,min=3,max=255"`
+	Description string     `gorm:"not null" json:"description" binding:"required,min=5,max=500"`
+	Status      TaskStatus `gorm:"type:text;default:'pending'" json:"status"` // Use TEXT instead of ENUM
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // This method can be used to perform custom validations on the task model before saving it to the database.

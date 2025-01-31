@@ -25,6 +25,7 @@ func GetTaskByID(c *gin.Context) {
 
 func CreateTask(c *gin.Context) {
 	var task models.Task
+
 	// Bind and validate the request body to the task model
 	if err := c.ShouldBindJSON(&task); err != nil {
 		// If validation fails, return a 400 Bad Request with the error details
@@ -32,15 +33,16 @@ func CreateTask(c *gin.Context) {
 		return
 	}
 
-	// Additional custom validation (e.g., checking status)
-	if err := task.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task data", "details": err.Error()})
+	// Check if a task with the same title already exists
+	var existingTask models.Task
+	if err := dao.GetDB().Where("title = ?", task.Title).First(&existingTask).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Task with this title already exists"})
 		return
 	}
 
-	// Save task to the database
+	// Create a new task
 	if err := dao.GetDB().Create(&task).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task"})
 		return
 	}
 
@@ -83,7 +85,11 @@ func UpdateTask(c *gin.Context) {
 }
 
 func DeleteTask(c *gin.Context) {
-	if err := dao.GetDB().Delete(&models.Task{}, c.Param("id")).Error; err != nil {
+	rec := dao.GetDB().Delete(&models.Task{}, c.Param("id"))
+	if rec.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Error Deleting task!"})
+		return
+	} else if rec.RowsAffected < 1 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found!"})
 		return
 	}
